@@ -371,17 +371,18 @@ void MP2Node::checkMessages() {
 			}
 			case MessageType::READREPLY:{
 				if(!undone.count(msg.transID))break;
-				undone[msg.transID]->replies ++;
-				undone[msg.transID]->value = msg.value;
 				if(msg.value.size()) 
 					undone[msg.transID]->quorum++;
+				undone[msg.transID]->replies ++;
+				undone[msg.transID]->value = msg.value;
 				break;
 			}
 			case MessageType::REPLY:{
 				if(!undone.count(msg.transID))break;
-				undone[msg.transID]->replies ++;
 				if(msg.success)
 					undone[msg.transID]->quorum++;
+				undone[msg.transID]->replies ++;
+
 				break;
 			}
 		}
@@ -495,33 +496,31 @@ request::request(int _id, int _timestamp, MessageType _msg_Type, string _key, st
 void MP2Node::reply(int transID, Address* fromAddr, MessageType type, bool success, string value){
 	if(type != MessageType::READ){
 		Message msg(transID, this->memberNode->addr,  MessageType::REPLY, success);
-		string data = msg.toString();
-		emulNet->ENsend(&memberNode->addr, fromAddr, data);
+		emulNet->ENsend(&memberNode->addr, fromAddr, msg.toString());
 		
 	}else{
 		Message msg(transID, this->memberNode->addr, value);
-		string data = msg.toString();
-		emulNet->ENsend(&memberNode->addr, fromAddr, data);	
+		emulNet->ENsend(&memberNode->addr, fromAddr, msg.toString());	
 		
 	}
 	
 }
 
 void MP2Node::check_request(){
-	for(auto it = undone.begin();it != undone.end();){
-		if(it->second->replies - it->second->quorum >= 2 || this->par->getcurrtime() - it->second->timestamp > 4) {
-			log_fail(it->second);
-			delete it->second;
-			it = undone.erase(it);
+	for(auto p = undone.begin();p!= undone.end();){
+		if(p->second->replies - p->second->quorum >= 2 || this->par->getcurrtime() - p->second->timestamp > 4) {
+			log_fail(p->second);
+			delete p->second;
+			p = undone.erase(p);
 			continue;
 		}
-		if(it->second->quorum >= 2) {
-			log_succ(it->second);
-			delete it->second;
-			it = undone.erase(it);
+		if(p->second->quorum >= 2) {
+			log_succ(p->second);
+			delete p->second;
+			p = undone.erase(p);
 			continue;
 		}
-		it++;
+		p++;
 	}	
 }
 void MP2Node::log_fail(request * req) {
